@@ -219,4 +219,4 @@ __marimo__/
 
 # Project ignore
 /yfinance_cache/
-/results
+# /results
