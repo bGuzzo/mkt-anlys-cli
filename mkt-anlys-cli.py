@@ -13,7 +13,7 @@ logging.basicConfig(
 
 app = typer.Typer(help="Market Analysis CLI tool for portfolio strategy evaluation.")
 
-VALID_PERIODS = {"3mo", "6mo", "1y", "2y", "5y", "10y"}
+VALID_PERIODS = {"3mo", "6mo", "1y", "2y", "3y", "5y", "10y"}
 
 def validate_weights(weights_str: str) -> dict[str, float]:
     """Parses and validates the weights input."""

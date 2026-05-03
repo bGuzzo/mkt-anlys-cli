@@ -1,4 +1,5 @@
 # Market Analysis CLI
+![Market Analysis CLI Cover](pics/sp20_eq_weight_3y.png)
 A simple and lightweight Python CLI tool to perform **market analysis** and **evaluate your stock portfolio strategy** against historical data. 
 It allows you to define your **personal financial index** (for your portfolio?) and evaluate your strategy using historical data. 
 It uses data from yfinance and produces simple charts and statistics.
