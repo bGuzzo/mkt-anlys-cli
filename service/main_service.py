@@ -8,6 +8,7 @@ from service.reporting_service import (
     calculate_portfolio_daily_returns,
     calculate_portfolio_yield,
     compute_metrics,
+    calculate_correlation,
     generate_csv_report
 )
 from service.plotting_service import plot_performance
@@ -58,16 +59,20 @@ def run_analysis(
                 outdir=outdir
             )
             
+            # 5. Calculate Correlation
+            correlation = calculate_correlation(port_ret_aligned, bench_ret_aligned)
+            
             # Store metrics for report
             results_by_period[period] = {
                 'portfolio': portfolio_metrics,
-                'benchmark': benchmark_metrics
+                'benchmark': benchmark_metrics,
+                'correlation': correlation
             }
             
         except Exception as e:
             logging.error(f"Error processing period '{period}': {e}")
             
-    # 5. Generate Final Report
+    # 6. Generate Final Report
     if results_by_period:
         generate_csv_report(
             idx_name=idx_name,

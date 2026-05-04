@@ -21,6 +21,10 @@ def get_market_data(ticker: str, period: str) -> pd.DataFrame:
         try:
             df = pd.read_parquet(cache_file)
             if not df.empty:
+                # Normalize index to timezone-naive dates
+                if hasattr(df.index, 'tz') and df.index.tz is not None:
+                    logging.info(f"Normalizing timezone '{df.index.tz}' for '{ticker}' (cached).")
+                df.index = pd.to_datetime(df.index.date)
                 logging.info(f"Successfully loaded {len(df)} rows for '{ticker}' from cache.")
                 return df
         except Exception as e:
@@ -35,6 +39,11 @@ def get_market_data(ticker: str, period: str) -> pd.DataFrame:
             logging.error(f"No data returned from yfinance for '{ticker}' ({period}).")
             return pd.DataFrame()
             
+        # Normalize index to timezone-naive dates
+        if hasattr(df.index, 'tz') and df.index.tz is not None:
+            logging.info(f"Normalizing timezone '{df.index.tz}' for '{ticker}' (downloaded).")
+        df.index = pd.to_datetime(df.index.date)
+        
         logging.info(f"Downloaded {len(df)} rows for '{ticker}'. Saving to cache...")
         df.to_parquet(cache_file)
         return df

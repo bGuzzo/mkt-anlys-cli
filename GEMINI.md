@@ -94,7 +94,7 @@ Charts produced by the `plotting_service.py` must adhere to these quality standa
 - [x] Implement period validation (`3mo, 6mo, 1y, 2y, 5y, 10y`).
 - [x] Implement data fetching service with local Parquet caching.
 - [x] Implement high-resolution cumulative performance charts (Matplotlib).
-- [x] Implement financial statistics (Return, Volatility, Yield).
+- [x] Implement financial statistics (Return, Volatility, Yield, Correlation).
 - [x] Orchestrate via `main_service.py` with verbose audit logging.
 - [x] Establish unit testing for financial logic.
 

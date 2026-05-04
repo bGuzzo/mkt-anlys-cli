@@ -4,7 +4,8 @@ import numpy as np
 from service.reporting_service import (
     calculate_portfolio_daily_returns,
     calculate_portfolio_yield,
-    compute_metrics
+    compute_metrics,
+    calculate_correlation
 )
 
 @pytest.fixture
@@ -68,3 +69,16 @@ def test_compute_metrics_empty():
     assert metrics["Return"] == 0.0
     assert metrics["Volatility"] == 0.0
     assert metrics["Yield"] == 0.0
+
+def test_calculate_correlation():
+    s1 = pd.Series([0.1, 0.2, -0.1, 0.0])
+    s2 = pd.Series([0.1, 0.2, -0.1, 0.0])
+    # Perfect correlation
+    assert calculate_correlation(s1, s2) == 1.0
+    
+    s3 = pd.Series([-0.1, -0.2, 0.1, 0.0])
+    # Inverse correlation
+    assert calculate_correlation(s1, s3) == -1.0
+    
+    s_empty = pd.Series(dtype=float)
+    assert calculate_correlation(s1, s_empty) == 0.0

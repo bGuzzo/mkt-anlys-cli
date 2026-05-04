@@ -60,6 +60,15 @@ def compute_metrics(returns: pd.Series, div_yield: float) -> dict[str, float]:
         "Yield": div_yield
     }
 
+def calculate_correlation(s1: pd.Series, s2: pd.Series) -> float:
+    """Calculates the correlation between two series of returns."""
+    if s1.empty or s2.empty:
+        logging.warning("One or both series are empty. Correlation cannot be calculated.")
+        return 0.0
+    correlation = s1.corr(s2)
+    logging.info(f"Calculated Correlation: {correlation:.4f}")
+    return correlation
+
 def generate_csv_report(
     idx_name: str, 
     benchmark: str, 
@@ -91,6 +100,13 @@ def generate_csv_report(
             diff_row[period] = f"{diff_val:.2%}"
             
         rows.extend([idx_row, bm_row, diff_row])
+    
+    # Add Correlation row
+    corr_row = {"Metric": f"Correlation ({idx_name} vs {benchmark})"}
+    for period, res in results_by_period.items():
+        corr_val = res.get('correlation', 0.0)
+        corr_row[period] = f"{corr_val:.4f}"
+    rows.append(corr_row)
         
     df_report = pd.DataFrame(rows)
     csv_path = outdir / f"{idx_name}_summary.csv"

@@ -220,3 +220,8 @@ __marimo__/
 # Project ignore
 /yfinance_cache/
 # /results
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
