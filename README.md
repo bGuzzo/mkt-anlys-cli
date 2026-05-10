@@ -5,9 +5,17 @@
 ![Market Analysis CLI Cover](pics/sp20_eq_weight_3y.png)
 ---
 
-A simple and lightweight Python CLI tool to perform **market analysis** and **evaluate stock portfolio strategies** against historical data. 
-It allows you to define a **personal financial index** for your portfolio and evaluate its performance using historical data. 
-The tool leverages data from `yfinance` to produce clear performance charts and comprehensive statistics.
+A suite of lightweight Python CLI tools to perform **market analysis**, **evaluate stock portfolio strategies**, and **construct market-cap weighted portfolios**.
+
+The project consists of two main tools:
+1. **Performance Evaluator (`mkt-anlys-cli.py`)**: Define a personal financial index and evaluate its historical performance against benchmarks.
+2. **Portfolio Constructor (`portfolio-cli.py`)**: Generate a market-cap weighted allocation (S&P 500 style) for a list of tickers.
+
+### Unified EUR Perspective
+Both tools normalize ALL financial data to **EUR**. This means if you have a portfolio with Apple (USD), Samsung (KRW), and Toyota (JPY), the tools will automatically:
+- Fetch historical exchange rates for every day in the analysis period.
+- Convert all prices, dividends, and market caps to Euros.
+- Provide a consistent view of returns and allocations from an Euro-based investor's perspective.
 
 ## Installation
 Requires [uv](https://github.com/astral-sh/uv):
@@ -15,52 +23,66 @@ Requires [uv](https://github.com/astral-sh/uv):
 uv sync
 ```
 
-## Usage
+---
+
+## 1. Performance Evaluator (`mkt-anlys-cli.py`)
+Evaluate your stock portfolio strategy against historical data.
+
+### Usage
 ```bash
 uv run mkt-anlys-cli.py \
-  --weights '{"AAPL": 0.4, "MSFT": 0.4, "AMZN": 0.2}' \
+  --weights '{"AAPL": 0.4, "005930.KS": 0.4, "SAP.DE": 0.2}' \
   --benchmark '^GSPC' \
   --outdir "./results" \
   --period "1y, 5y" \
-  --idx_name "my_portfolio"
+  --idx_name "global_portfolio"
 ```
 
-## Inputs
-The CLI tool accepts five arguments:
-1. `weights`: A JSON dictionary that maps a `yfinance` ticker to a weight (0 to 1). Example: `--weights '{"AAPL": 0.4, "MSFT": 0.4, "AMZN": 0.2}'`.
-2. `benchmark`: A `yfinance` ticker used as a reference in plots and statistics. Example: `--benchmark '^GSPC'` (S&P 500).
-3. `outdir`: The target directory to store the output artifacts (charts and CSV statistics). Example: `--outdir "./index_output"`.
-4. `period`: The timeframe(s) for which you want to evaluate your strategy. Example: `--period '6mo, 1y, 3y, 5y'`. Supported periods: `3mo, 6mo, 1y, 2y, 5y, 10y`.
-5. `idx_name`: The name of your custom index (should not contain spaces). Example: `--idx_name 'my_index'`.
+### Inputs
+- `weights`: JSON dictionary mapping ticker to weight (0 to 1). Supports global tickers (e.g., `005930.KS` for Samsung).
+- `benchmark`: Reference ticker (e.g., `^GSPC`).
+- `outdir`: Target directory for charts and stats.
+- `period`: Timeframe(s) (e.g., `1y, 5y`). Supported: `3mo, 6mo, 1y, 2y, 5y, 10y`.
+- `idx_name`: Name for your index (no spaces).
+
+---
+
+## 2. Portfolio Constructor (`portfolio-cli.py`)
+Compute market-cap weighted allocations for a list of stocks to determine how much to invest in each.
+
+### Usage
+```bash
+uv run portfolio-cli.py \
+  --input tickers.json \
+  --amount 10000 \
+  --outfile allocation.csv
+```
+
+### Inputs
+- `input`: Path to a JSON file containing a list of global yfinance tickers.
+- `amount`: Total amount in **Euros** you are willing to invest.
+- `outfile`: Path to the generated CSV allocation report.
+
+---
 
 ## Performance & Caching
-- **Local Cache:** Raw market data is cached in `./yfinance_cache/` using the Parquet format to avoid redundant network requests.
-- **Efficient Processing:** Uses `pandas` and `pyarrow` for internal data handling to ensure speed and type safety.
+- **Local Cache:** Raw market data and ticker metadata are cached in `./yfinance_cache/` using Parquet and JSON formats to avoid redundant network requests.
+- **Exchange Rate Caching:** Currency conversion rates are fetched once per day and cached locally.
 
 ## Outputs & Interpretation
-The tool generates a comparative set of artifacts in the specified `--outdir`.
 
-### 1. Cumulative Performance Charts (PNG)
-- **What it shows:** The "Growth of a Dollar." It tracks how a $1 investment at the start of the `period` would have evolved over time.
-- **Interpretation:** 
-    - If your portfolio's line is above the benchmark line, your strategy **outperformed** the market during that specific timeframe.
-    - **Volatility Visualization:** Sharp peaks and valleys indicate higher risk/volatility, while smoother lines suggest more stable assets.
-- **Details:** High-resolution (300 DPI) charts with daily granularity ensure an accurate representation of trends.
+### Performance Analysis (mkt-anlys-cli.py)
+Generates high-resolution PNG charts and a `{idx_name}_summary.csv` file. All metrics (Return, Volatility, Yield) are calculated **after currency conversion to EUR**.
 
-### 2. Consolidated Statistics Summary (CSV)
-The summary file `{idx_name}_summary.csv` uses a **Metric-Pivot** structure for easy side-by-side comparison across all requested periods.
+### Portfolio Allocation (portfolio-cli.py)
+Generates a CSV with the following columns:
+- **Ticker**: The stock symbol.
+- **Euros to Allocate**: How much to spend in EUR.
+- **Dollars to Allocate**: Equivalent value in USD.
+- **Percentage**: The stock's weight in the total portfolio (calculated based on EUR-normalized market caps).
 
-| Metric | Description |
-| :--- | :--- |
-| **Return** | The **Compound Annual Growth Rate (CAGR)**. It represents the geometric mean return that would provide the same total return as the actual variable returns, assuming annual compounding. |
-| **Volatility** | The **Annualized Standard Deviation** of daily returns. This is the primary measure of market risk; higher values indicate larger price swings. |
-| **Yield** | The **Annualized Dividend Yield**. It is calculated by summing all dividends received during the period relative to the starting price and then annualizing the result. |
-| **Difference** | The "Alpha" or "Spread," calculated as `Portfolio Metric - Benchmark Metric`. A positive Return Difference indicates that your portfolio outperformed the market. |
+---
 
-### Interpretation Example
-If the CSV shows:
-- `Return (Difference)` for 5y: `+2.97%`
-- `Volatility (Difference)` for 5y: `+7.54%`
-
-This indicates that your portfolio earned **2.97% more per year** than the benchmark over 5 years, but it was **significantly riskier** (7.54% more volatile) to achieve those returns.
-
+## Logging & Troubleshooting
+The tools utilize verbose, high-signal logging to help you track data fetching, currency normalization, cache hits/misses, and calculation steps.
+Example: `2026-05-10 07:30:31.858 INFO [main_service.py:35] normalize_data_to_eur: Normalizing 'AAPL' from USD to EUR...`

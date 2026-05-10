@@ -1,37 +1,77 @@
 # Market Analysis CLI - Project Context
 
 ## Project Overview
-A Python-based CLI tool designed to perform market analysis and evaluate stock portfolio strategies against historical data. It leverages the `yfinance` library to fetch market data and generates visual charts (PNG) and statistical reports (CSV).
+A Python-based CLI toolset designed to perform market analysis and evaluate stock portfolio strategies.
 
-**Key Features (Planned):**
-- Portfolio strategy evaluation using custom weights.
-- Benchmark comparison (e.g., S&P 500).
-- Visual performance charts (one per period).
-- Risk and return statistics (yield/dividends, returns, volatility).
+**Key Tools:**
+- **mkt-anlys-cli.py:** Evaluates portfolio strategy performance (returns, volatility, yield) against historical benchmarks using custom weights.
+- **portfolio-cli.py:** Assists in portfolio construction by calculating market-cap weighted allocations (similar to the S&P 500) for a list of tickers, normalizing all values to Euros.
 
 ## Tech Stack
 - **Language:** Python (>= 3.14.0)
 - **Dependency Management:** [uv](https://github.com/astral-sh/uv)
-- **CLI Framework:** [Typer](https://typer.tiangolo.com/) (enforces type hints and clean CLI design)
+- **CLI Framework:** [Typer](https://typer.tiangolo.com/)
 - **Data Source:** `yfinance`
-- **Data Processing:** `Pandas` / `NumPy` / `pyarrow` (for Parquet support)
+- **Data Processing:** `Pandas` / `NumPy` / `pyarrow`
 - **Visualization:** `Matplotlib`
 - **Testing:** `pytest`
 
+## Architectural Principles & SOLID Guidelines
+
+To ensure long-term maintainability and scalability, the following principles MUST be followed:
+
+### 1. SOLID Principles
+- **Single Responsibility (SRP):** Each service class or module must have one, and only one, reason to change. (e.g., `yfinance_service` only handles data retrieval, not calculation).
+- **Open/Closed:** Services should be open for extension but closed for modification. Use composition over inheritance.
+- **Liskov Substitution:** Derived types must be completely substitutable for their base types.
+- **Interface Segregation:** Prefer many client-specific interfaces over one general-purpose interface.
+- **Dependency Inversion:** Depend on abstractions, not concretions. Orchestration layers (like `main_service`) should drive the high-level logic while implementation details are hidden in specialized services.
+
+### 2. Loose Coupling & Modular Design
+- **Service Isolation:** Services must not have deep internal dependencies on each other's state. Communication should happen through clear function signatures and data structures (DataFrames/Series).
+- **Orchestration Layer:** Use "Main" services or the CLI layer to coordinate multiple specialized services. Avoid "spaghetti" calls where services invoke each other in a circular or deep chain.
+- **No Nested Functions:** Do NOT use nested function declarations. All functions must be defined at the module level to ensure they are accessible for unit testing and maintain a flat, readable structure.
+
+### 3. Fault Tolerance & Robustness
+- **Graceful Degradation:** If a ticker fails to fetch or a market cap is missing, the system should log a clear error and continue processing the remaining constituents whenever possible.
+- **Data Validation:** Validate all external inputs (JSON, CSV, CLI arguments) early. Use Typer's validation hooks for CLI arguments.
+- **NaN Handling:** Financial calculations must explicitly handle `NaN` or infinite values resulting from pct_change or division by zero, preventing crashes during report generation.
+
 ## Technical Assumptions
-To ensure consistency across the implementation, the following choices have been made:
 - **Output Naming Conventions:**
-    - Charts: `{idx_name}_{period}.png` (e.g., `my_portfolio_1y.png`)
-    - Statistics: `{idx_name}_summary.csv` (Note: This is the ONLY intentional CSV output; all other intermediate data must use Parquet)
-- **Testing Strategy:** A `tests/` directory will be established. Logic for annualized returns, volatility, and dividend yield calculations must be covered by unit tests.
-- **Data Handling:** All market data will be handled as Pandas DataFrames. Time-series alignment between different tickers will be performed using daily closing prices. **Avoid CSV for internal computations.**
-- **Local Caching:** A local cache directory `./yfinance_cache/` must be used to store raw data from `yfinance`.
-    - **Cache Key:** Files should be named using the pattern `{ticker}_{period}_{fetch_date}.parquet` (e.g., `AAPL_1y_2024-05-03.parquet`).
-    - **Format:** Data MUST be stored as **Parquet** files for performance and type preservation.
-    - **Retrieval Logic:** The `yfinance_service.py` must:
-        1. Check if a valid cache file exists for the ticker/period/date combination.
-        2. If it exists, load the data directly from Parquet into a Pandas DataFrame.
-        3. If it does not exist, download the data, save it as Parquet to the cache directory, and then return the DataFrame.
+    - Charts: `{idx_name}_{period}.png`
+    - Statistics: `{idx_name}_summary.csv`
+    - Portfolio Allocation: Custom path provided via `--outfile`.
+- **Data Handling:** All market data handled as Pandas DataFrames. Parquet is the preferred format for caching.
+- **Local Caching:** `./yfinance_cache/` stores raw data.
+    - **Cache Key:** `{ticker}_{period}_{fetch_date}.parquet`.
+- **Currency Normalization (Unified EUR Perspective):** 
+    - Both `mkt-anlys-cli.py` and `portfolio-cli.py` normalize ALL data to **EUR**.
+    - For performance analysis, historical prices and dividends are converted using daily historical exchange rates (e.g., `USDEUR=X`) before calculating returns and metrics.
+    - For portfolio construction, market caps are converted to EUR using current rates.
+    - This ensures a consistent EUR-based perspective for all financial metrics (CAGR, Volatility, Yield, Allocations), regardless of the asset's original trading currency (USD, KRW, JPY, etc.).
+
+## Implementation Status
+- [x] Implement argument parsing in `mkt-anlys-cli.py` (Typer).
+- [x] Implement period validation (`3mo, 6mo, 1y, 2y, 5y, 10y`).
+- [x] Implement data fetching service with local Parquet caching.
+- [x] Implement high-resolution cumulative performance charts (Matplotlib).
+- [x] Implement financial statistics (Return, Volatility, Yield, Correlation).
+- [x] Orchestrate via `main_service.py` with verbose audit logging.
+- [x] Implement `portfolio-cli.py` for market-cap weighted allocations.
+- [x] Implement currency-aware market cap normalization and exchange rate fetching.
+- [x] **New:** Implement currency-aware historical normalization for performance evaluation in `mkt-anlys-cli.py`.
+- [x] Establish unit testing for financial logic.
+
+## Development Conventions
+- **Modular Services:**
+    - `main_service.py`: Orchestrates performance analysis.
+    - `yfinance_service.py`: Handles all API interactions and caching. Now includes metadata and historical exchange rate fetching.
+    - `portfolio_service.py`: Dedicated logic for portfolio construction.
+    - `plotting_service.py`: Chart generation.
+    - `reporting_service.py`: Stats calculation and CSV report generation.
+- **Logging Standards:** Verbose, space-separated format (Date/Time, Level, [File:Row], Function, Message) is mandatory. Every significant branch, API call, and calculation milestone must be logged.
+- **Testing:** New logic must be accompanied by tests in the `tests/` directory.
 
 ## Getting Started
 
@@ -45,56 +85,11 @@ To ensure consistency across the implementation, the following choices have been
 uv sync
 ```
 
-### Running the CLI
-The project is currently in its early development phase. The main entry point is `mkt-anlys-cli.py`.
-
+### Running the CLIs
 ```bash
-uv run mkt-anlys-cli.py
+# Performance Analysis
+uv run mkt-anlys-cli.py --weights '{"AAPL": 0.5, "MSFT": 0.5}' --benchmark '^GSPC' --outdir "./results" --period "1y" --idx_name "my_idx"
+
+# Portfolio Construction
+uv run portfolio-cli.py --input tickers.json --amount 10000 --outfile allocation.csv
 ```
-
-## Project Structure
-- `mkt-anlys-cli.py`: Primary CLI entry point and argument parser.
-- `service/`: Directory for core business logic and modular services.
-- `pyproject.toml`: Project configuration and dependencies.
-- `README.md`: User-facing documentation and feature roadmap.
-
-## Architectural Principles
-- **Loose Coupling:** Services should be independent. If a service needs to communicate with another, it should do so through well-defined interfaces or by being orchestrated from the CLI layer.
-- **Single-Source Truth (Stats):** All statistical output should be consolidated into a single, well-structured CSV file that pivots metrics by period for easy comparison.
-
-## Data Validation & Error Handling
-To ensure robust analysis, the following validations must be implemented:
-- **Weight Integrity:** The `weights` dictionary must be validated to ensure keys are valid tickers and values are numeric. The system should warn or error if weights do not sum to 1.0.
-- **Period Validation:** Only the following periods are supported: `3mo, 6mo, 1y, 2y, 5y, 10y`. Any other input should be rejected with a clear error message.
-- **Data Availability:** Check if the requested `period` exceeds the historical data available for any ticker in the portfolio. Handle "NaN" or missing data gracefully in calculations.
-- **Directory Safety:** Ensure the `outdir` exists or is created safely before writing any files.
-
-## Visualization Standards
-Charts produced by the `plotting_service.py` must adhere to these quality standards:
-- **Granularity:** Use daily price data to ensure high resolution and accurate trend representation.
-- **Details:** Every chart must include:
-    - A clear **Title** specifying the index name, benchmark, and period.
-    - **Legend** clearly distinguishing the Index from the Benchmark.
-    - **Axis Labels** for both time (X-axis) and cumulative returns/price (Y-axis).
-    - **Grid lines** for better readability.
-- **Output:** Save as high-quality PNG files in the specified `outdir`.
-
-## Development Conventions
-- **Modular Services:** Use multiple files within the `service/` directory to separate responsibilities. Create new services as needed to keep files focused:
-    - `main_service.py`: (Optional/Recommended) Acts as the primary orchestrator within the service layer, coordinating calls between specialized services.
-    - `yfinance_service.py`: Dedicated to fetching and pre-processing data from the `yfinance` API. Responsible for managing the `./yfinance_cache/` to minimize API calls.
-    - `plotting_service.py`: Handles the generation of charts and visual representations.
-    - `reporting_service.py`: Responsible for calculating statistics and generating CSV reports.
-    - *Other services:* Feel free to create additional services (e.g., `validation_service.py`, `config_service.py`) to further decouple logic.
-- **Package Structure:** The `service/` directory is a proper Python package with an `__init__.py`.
-- **Logging Standards:** Uses a refined, space-separated format (Date/Time, Level, [File:Row], Function, Message) for high traceability without excessive padding.
-
-## Implementation Status
-- [x] Implement argument parsing in `mkt-anlys-cli.py` (Typer).
-- [x] Implement period validation (`3mo, 6mo, 1y, 2y, 5y, 10y`).
-- [x] Implement data fetching service with local Parquet caching.
-- [x] Implement high-resolution cumulative performance charts (Matplotlib).
-- [x] Implement financial statistics (Return, Volatility, Yield, Correlation).
-- [x] Orchestrate via `main_service.py` with verbose audit logging.
-- [x] Establish unit testing for financial logic.
-

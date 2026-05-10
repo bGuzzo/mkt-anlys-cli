@@ -3,6 +3,7 @@ import pandas as pd
 from pathlib import Path
 import datetime
 import logging
+import json
 
 CACHE_DIR = Path("./yfinance_cache")
 
@@ -50,6 +51,73 @@ def get_market_data(ticker: str, period: str) -> pd.DataFrame:
     except Exception as e:
         logging.error(f"yfinance download error for '{ticker}': {e}")
         return pd.DataFrame()
+
+def get_ticker_info(ticker: str) -> dict:
+    """
+    Fetches metadata for a given ticker from yfinance.
+    Implements a simple daily cache for metadata.
+    """
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    today_str = datetime.date.today().isoformat()
+    safe_ticker = ticker.replace("^", "").replace("=", "_")
+    cache_file = CACHE_DIR / f"{safe_ticker}_info_{today_str}.json"
+    
+    if cache_file.exists():
+        try:
+            with open(cache_file, "r") as f:
+                return json.load(f)
+        except Exception as e:
+            logging.warning(f"Metadata cache read failed for {cache_file}: {e}")
+
+    logging.info(f"Fetching metadata for '{ticker}' from yfinance...")
+    try:
+        yf_ticker = yf.Ticker(ticker)
+        info = yf_ticker.info
+        with open(cache_file, "w") as f:
+            json.dump(info, f)
+        return info
+    except Exception as e:
+        logging.error(f"Error fetching metadata for '{ticker}': {e}")
+        return {}
+
+def get_exchange_rate(from_currency: str, to_currency: str) -> float:
+    """
+    Fetches the current exchange rate between two currencies.
+    """
+    if from_currency == to_currency:
+        return 1.0
+        
+    pair = f"{from_currency}{to_currency}=X"
+    logging.info(f"Fetching current exchange rate for '{pair}'...")
+    try:
+        df = get_market_data(pair, period="1d")
+        if not df.empty:
+            rate = df['Close'].iloc[-1]
+            logging.info(f"Exchange rate for '{pair}': {rate:.4f}")
+            return float(rate)
+        else:
+            logging.error(f"Could not fetch exchange rate for '{pair}'.")
+            return 1.0
+    except Exception as e:
+        logging.error(f"Error fetching exchange rate for '{pair}': {e}")
+        return 1.0
+
+def get_historical_exchange_rates(from_currency: str, to_currency: str, period: str) -> pd.Series:
+    """
+    Fetches the historical exchange rate series between two currencies.
+    Returns a pandas Series of the 'Close' prices.
+    """
+    if from_currency == to_currency:
+        return pd.Series()
+        
+    pair = f"{from_currency}{to_currency}=X"
+    logging.info(f"Fetching historical exchange rates for '{pair}' over '{period}'...")
+    df = get_market_data(pair, period=period)
+    if not df.empty:
+        return df['Close']
+    else:
+        logging.error(f"Could not fetch historical exchange rates for '{pair}'.")
+        return pd.Series()
 
 def align_and_combine_data(tickers: list[str], period: str) -> dict[str, pd.DataFrame]:
     """
