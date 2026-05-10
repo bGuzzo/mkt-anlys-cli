@@ -219,7 +219,8 @@ __marimo__/
 
 # Project ignore
 /yfinance_cache/
-# /results
+/results
+/portfolio_res
 
 # macOS
 .DS_Store
