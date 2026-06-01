@@ -47,7 +47,19 @@ uv run mkt-anlys-cli.py \
 
 uv run mkt-anlys-cli.py \
 --weights "$(cat configs/ibkr_portfolio_mkt_cap.json)" \
---benchmark '^GSPC' \
+--benchmark 'VT' \
 --outdir "./results/ibkr_mkt_cap" \
---period "1y, 3y, 5y" \
+--period "6mo, 1y, 3y, 5y, 10y" \
 --idx_name "ibkr_mkt_cap"
+
+# ==============================================================================
+# PORTFOLIO CONSTRUCTION EXAMPLE (Generate buy list from a JSON list file)
+# ==============================================================================
+# To compute the exact amount of each stock to buy based on market capitalization
+# given a list of tickers in a JSON file and a specific EUR budget (e.g. 3000 EUR):
+#
+# uv run portfolio-cli.py \
+#   --input configs/ibkr_portfolio_list.json \
+#   --amount 3000 \
+#   --outfile portfolio_res/ibkr_allocation_3k.csv
+# ==============================================================================

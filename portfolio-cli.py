@@ -40,6 +40,9 @@ def main(
 ):
     """
     Compute market-cap weighted allocations for a list of stocks.
+    
+    Example:
+    uv run portfolio-cli.py --input configs/ibkr_portfolio_list.json --amount 3000 --outfile portfolio_res/ibkr_allocation_3k.csv
     """
     logging.info(f"Starting portfolio allocation for {amount} EUR")
     
