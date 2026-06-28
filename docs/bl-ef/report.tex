@@ -1,0 +1,165 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsfonts}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{geometry}
+\usepackage{color}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+
+% Page Geometry
+\geometry{top=2.5cm, bottom=2.5cm, left=2.5cm, right=2.5cm}
+
+% Header and Footer Customization
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{\textbf{Black-Litterman \& Efficient Frontier Report}}
+\lhead{Market Analysis CLI}
+\rfoot{Page \thepage}
+\lfoot{\copyright\ 2026 Bruno Guzzo}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.4pt}
+
+% Section Formatting
+\titleformat{\section}{\large\bfseries\color{blue}}{\thesection}{1em}{}
+\titleformat{\subsection}{\normalsize\bfseries\color{darkgray}}{\thesubsection}{1em}{}
+
+\definecolor{blue}{rgb}{0.1, 0.2, 0.6}
+\definecolor{darkgray}{rgb}{0.2, 0.2, 0.2}
+
+\title{\textbf{\Large Black-Litterman Optimization \& Analytical Efficient Frontier}\\
+\large System Design, Mathematical Foundations, and Empirical Results}
+\author{\textbf{Bruno Guzzo} \\ \href{mailto:bruno@guzzo.com}{bruno@guzzo.com}}
+\date{June 28, 2026}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+This report details the implementation, mathematical framework, and system architecture of the Black-Litterman (BL) optimization and Markowitz Efficient Frontier (EF) module integrated into the Market Analysis CLI. We establish a mathematically rigorous, unconstrained portfolio optimization pipeline normalized to a unified Euro (EUR) perspective. By combining historical covariance estimates, market equilibrium priors, and analytical hyperbola formulations, the system delivers high-resolution visual and statistical backtest reports to aid modern portfolio construction.
+\end{abstract}
+
+\section{Introduction}
+Modern Portfolio Theory (MPT), introduced by Harry Markowitz in 1952, provides a quantitative framework to balance risk and return through diversification. However, classical mean-variance optimization is highly sensitive to input parameters, frequently leading to extreme or physically unrealistic portfolio allocations. To mitigate this sensitivity, the Black-Litterman (BL) model combines market-implied equilibrium returns (as a prior) with investor views (via a Bayesian updating scheme) to form a robust posterior distribution of expected returns.
+
+This document serves as the formal mathematical and technical documentation of the \texttt{mkt-anlys-cli} portfolio optimization module.
+
+\section{Mathematical Foundations}
+
+\subsection{Implied Equilibrium Prior Returns}
+The Black-Litterman model begins with the assumption that the market portfolio is already optimal. Under the standard mean-variance framework, the investor's objective function is:
+\begin{equation}
+\max_{w} \quad w^T \Pi - \frac{\lambda}{2} w^T \Sigma w
+\end{equation}
+where $w$ is the vector of asset weights, $\Pi$ is the vector of expected returns, $\Sigma$ is the covariance matrix of asset returns, and $\lambda$ is the investor's risk aversion coefficient. 
+
+Taking the derivative with respect to $w$ and setting it to zero yields the market implied equilibrium returns (prior $\Pi$):
+\begin{equation}
+\Pi = \lambda \Sigma w_{mkt}
+\end{equation}
+where $w_{mkt}$ represents the capitalization-weighted market portfolio.
+
+\subsection{Black-Litterman Posterior Update}
+The investor expresses $K$ views on the $N$ assets using a projection matrix $P \in \mathbb{R}^{K \times N}$, a view returns vector $Q \in \mathbb{R}^{K \times 1}$, and a view uncertainty covariance matrix $\Omega \in \mathbb{R}^{K \times K}$. The prior expected returns are assumed to be normally distributed:
+\begin{equation}
+r \sim \mathcal{N}(\Pi, \tau \Sigma)
+\end{equation}
+where $\tau$ is a scalar indicating prior uncertainty (typically $0.01 \le \tau \le 0.05$).
+
+Combining the prior distribution with the view distribution via Bayes' Theorem yields the posterior expected returns $\mu_{BL}$ and adjusted covariance matrix $\Sigma_{BL}$:
+\begin{equation}
+\mu_{BL} = \Pi + \tau \Sigma P^T \left( P \tau \Sigma P^T + \Omega \right)^{-1} \left( Q - P \Pi \right)
+\end{equation}
+\begin{equation}
+\Sigma_{BL} = \Sigma + \left[ \left( \tau \Sigma \right)^{-1} + P^T \Omega^{-1} P \right]^{-1}
+\end{equation}
+
+When no investor views are specified, the posterior expected returns simplify to the implied equilibrium prior returns:
+\begin{equation}
+\mu_{BL} = \Pi
+\end{equation}
+
+\subsection{Analytical unconstrained Efficient Frontier}
+With the posterior expected returns $\mu_{BL}$ and covariance matrix $\Sigma_{BL}$ established, the system derives the minimum-variance frontier. For any target portfolio return $\mu_p$, the unconstrained mean-variance optimization problem is:
+\begin{equation}
+\min_{w} \quad \frac{1}{2} w^T \Sigma_{BL} w \quad \text{subject to} \quad w^T \mathbf{1} = 1, \quad w^T \mu_{BL} = \mu_p
+\end{equation}
+Using the method of Lagrange multipliers, we define the Lagrangian:
+\begin{equation}
+\mathcal{L}(w, \theta_1, \theta_2) = \frac{1}{2} w^T \Sigma_{BL} w - \theta_1 \left( w^T \mathbf{1} - 1 \right) - \theta_2 \left( w^T \mu_{BL} - \mu_p \right)
+\end{equation}
+The analytical solution to this optimization problem gives the frontier portfolio weights $w^*(r_p)$ and describes a perfect hyperbola in the volatility-return $(\sigma_p, \mu_p)$ plane:
+\begin{equation}
+\sigma_p^2 = \frac{A \mu_p^2 - 2 B \mu_p + C}{D}
+\end{equation}
+where the fundamental frontier constants $A$, $B$, $C$, and $D$ are defined as:
+\begin{equation}
+A = \mathbf{1}^T \Sigma_{BL}^{-1} \mathbf{1}, \quad B = \mu_{BL}^T \Sigma_{BL}^{-1} \mathbf{1}, \quad C = \mu_{BL}^T \Sigma_{BL}^{-1} \mu_{BL}, \quad D = A C - B^2
+\end{equation}
+
+\subsection{The Tangency Portfolio and Capital Allocation Line (CAL)}
+The optimal portfolio (highest Sharpe ratio) in the presence of a risk-free asset with annualized return $r_f$ is the Tangency Portfolio. Its weights are given analytically by:
+\begin{equation}
+w_{tan} = \frac{\Sigma_{BL}^{-1} \left( \mu_{BL} - r_f \mathbf{1} \right)}{\mathbf{1}^T \Sigma_{BL}^{-1} \left( \mu_{BL} - r_f \mathbf{1} \right)}
+\end{equation}
+The expected return $\mu_{tan}$ and volatility $\sigma_{tan}$ of the tangency portfolio are:
+\begin{equation}
+\mu_{tan} = w_{tan}^T \mu_{BL}, \quad \sigma_{tan} = \sqrt{w_{tan}^T \Sigma_{BL} w_{tan}}
+\end{equation}
+The Capital Allocation Line (CAL) represents the frontier of efficient portfolios formed by combining the risk-free asset and the optimal risky tangency portfolio:
+\begin{equation}
+\mu_{CAL}(\sigma) = r_f + \left( \frac{\mu_{tan} - r_f}{\sigma_{tan}} \right) \sigma = r_f + \text{SR}_{tan} \sigma
+\end{equation}
+where $\text{SR}_{tan}$ is the annualized Sharpe ratio of the tangency portfolio.
+
+\section{System Architecture}
+
+The portfolio evaluation and optimization suite is built with modularity, high performance, and strict typing under Python 3.14. The system conforms to the following architectural design:
+
+\begin{enumerate}
+    \item \textbf{Data Ingestion \& Cache Layer (\texttt{yfinance\_service.py}):} Retreives historical data from yfinance and caches raw prices/dividends in timezone-naive Parquet format under \texttt{./yfinance\_cache} to avoid API rate limits.
+    \item \textbf{Currency Normalization Layer (\texttt{main\_service.py}):} Daily prices and dividends of non-EUR assets are converted using daily historical FX exchange rates (e.g., \texttt{USDEUR=X}) before computing returns.
+    \item \textbf{Analytics \& Stats (\texttt{reporting\_service.py}):} Computes cumulative returns, volatility, correlation, and dividend yield from daily return Series.
+    \item \textbf{Black-Litterman \& Markowitz Math (\texttt{bl\_optimization\_service.py}):} Implements the core mathematical formulas for implied returns, BL updates, analytical frontier coordinates, and tangency weights.
+    \item \textbf{Visualization Layer (\texttt{plotting\_service.py}):} Renders high-resolution matplotlib charts of the Efficient Frontier, CAL, asset dots, and the optimal Tangency point.
+\end{enumerate}
+
+\section{Configuration and Parameters}
+
+The standard execution parameters applied to the analysis are summarized in Table~\ref{tab:params}.
+
+\begin{table}[h]
+\centering
+\caption{Optimization \& Modeling Parameters}
+\label{tab:params}
+\begin{tabular}{lll}
+\toprule
+\textbf{Parameter} & \textbf{Value} & \textbf{Description} \\
+\midrule
+Risk-free Rate ($r_f$) & 2.0\% (annualized) & Yield proxy for EUR cash equivalents \\
+Risk Aversion ($\lambda$) & 3.0 & Market equilibrium scaling factor \\
+Prior Uncertainty ($\tau$) & 0.05 & Prior returns scaling coefficient \\
+Trading Days per Year & 252 & Annualization factor for daily return series \\
+Regularization Value & $1.0 \times 10^{-6}$ & Added to diagonal of $\Sigma$ for numerical stability \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Summary of Results}
+
+Using the integration test suite workflow as an empirical baseline, a mock multi-asset USD/EUR portfolio was analyzed over a 1-year historical period. 
+The analytical efficient frontier hyperbola and Capital Allocation Line were successfully computed and plotted in high resolution.
+The resulting chart, saved as \texttt{test\_index\_efficient\_frontier\_1y.png}, highlights the high-contrast Tangency portfolio star, the risk-free Y-intercept, and the individual asset risk-return coordinates in cyan.
+The generated statistics confirm that the unconstrained tangency weights are optimal with respect to the Sharpe ratio relative to any individual portfolio constituent.
+
+\section{Conclusion}
+The Market Analysis CLI provides a mathematically rigorous, currency-aware framework for portfolio optimization. By implementing the unconstrained analytical minimum-variance frontier hyperbola and combining it with the Black-Litterman model, the CLI provides investors with robust, stable, and theoretically consistent portfolio allocations, entirely normalized to a unified EUR perspective.
+
+\end{document}

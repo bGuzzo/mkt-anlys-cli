@@ -62,16 +62,67 @@ To ensure long-term maintainability and scalability, the following principles MU
 - [x] Implement currency-aware market cap normalization and exchange rate fetching.
 - [x] **New:** Implement currency-aware historical normalization for performance evaluation in `mkt-anlys-cli.py`.
 - [x] Establish unit testing for financial logic.
+- [x] Establish integration testing verifying high-level CLI workflows.
+- [x] Configure Ruff, Mypy, and Pytest with SOTA standards.
 
-## Development Conventions
-- **Modular Services:**
-    - `main_service.py`: Orchestrates performance analysis.
-    - `yfinance_service.py`: Handles all API interactions and caching. Now includes metadata and historical exchange rate fetching.
-    - `portfolio_service.py`: Dedicated logic for portfolio construction.
-    - `plotting_service.py`: Chart generation.
-    - `reporting_service.py`: Stats calculation and CSV report generation.
-- **Logging Standards:** Verbose, space-separated format (Date/Time, Level, [File:Row], Function, Message) is mandatory. Every significant branch, API call, and calculation milestone must be logged.
-- **Testing:** New logic must be accompanied by tests in the `tests/` directory.
+## Quality Assurance & Testing Standards (SOTA)
+
+We enforce state-of-the-art (SOTA) quality control standards across the codebase using **Pytest**, **Ruff**, and **Mypy**.
+
+### 1. Code Formatting & Linting (Ruff)
+We use [Ruff](https://github.com/astral-sh/ruff) for extremely fast linting and import sorting.
+- **Rules Picked**: We enforce strict standards including:
+  - `E`, `W` (pycodestyle errors & warnings)
+  - `F` (pyflakes logic errors)
+  - `I` (isort import cleanups)
+  - `N` (PEP8 naming semantics)
+  - `UP` (pyupgrade automated syntax modernizations for Python 3.14)
+  - `B` (flake8-bugbear safety/reliability issues)
+  - `A` (flake8-builtins naming clashes)
+  - `C4` (flake8-comprehensions list/dict optimizations)
+  - `FA` (flake8-future-annotations style rules)
+  - `PT` (flake8-pytest-style standardized testing patterns)
+  - `TID` (flake8-tidy-imports banned/relative import control)
+  - `TCH` (flake8-type-checking static imports separation)
+  - `RUF` (Ruff internal enhancements)
+- **Run command**:
+  ```bash
+  # Check formatting and style rules
+  uv run ruff check .
+  
+  # Automatically fix fixable warnings & re-sort imports
+  uv run ruff check . --fix
+  ```
+
+### 2. Static Type Checking (Mypy)
+We use [Mypy](https://github.com/python/mypy) for strict static type checking to eliminate runtime errors.
+- **Configuration**:
+  - `strict = true`: Enforces type declarations for all functions, disallows implicit `Any`, and validates all assignments.
+  - Plugins: Integrates the `pydantic.mypy` plugin to validate typed parameters.
+- **Run command**:
+  ```bash
+  uv run mypy .
+  ```
+
+### 3. Automated Testing (Pytest)
+We run a comprehensive test suite covering unit and integration testing.
+- **Markers**:
+  - `@pytest.mark.unit`: Micro-level component verifications with no external I/O or pipelines (e.g., math calculations in `reporting_service.py`).
+  - `@pytest.mark.integration`: Macro-level state, physical data, model flows, and pipeline tests (e.g., CLI flows using Typer's `CliRunner`).
+- **Running tests**:
+  ```bash
+  # Run all tests
+  uv run pytest
+  
+  # Run only unit tests
+  uv run pytest -m unit
+  
+  # Run only integration tests
+  uv run pytest -m integration
+  
+  # Run tests with coverage
+  uv run pytest --cov=service --cov=mkt-anlys-cli --cov=portfolio-cli
+  ```
 
 ## Getting Started
 
@@ -93,3 +144,4 @@ uv run mkt-anlys-cli.py --weights '{"AAPL": 0.5, "MSFT": 0.5}' --benchmark '^GSP
 # Portfolio Construction
 uv run portfolio-cli.py --input tickers.json --amount 10000 --outfile allocation.csv
 ```
+
