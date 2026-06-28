@@ -227,3 +227,8 @@ __marimo__/
 .AppleDouble
 .LSOverride
 .antigravitycli
+
+# LaTeX
+*.aux
+*.log
+*.out

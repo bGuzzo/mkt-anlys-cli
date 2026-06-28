@@ -35,7 +35,7 @@
 
 \title{\textbf{\Large Black-Litterman Optimization \& Analytical Efficient Frontier}\\
 \large System Design, Mathematical Foundations, and Empirical Results}
-\author{\textbf{Bruno Guzzo} \\ \href{mailto:bruno@guzzo.com}{bruno@guzzo.com}}
+\author{\textbf{Bruno Guzzo} \\ \href{mailto:brunoguzzo18@gmail.com}{brunoguzzo18@gmail.com}}
 \date{June 28, 2026}
 
 \begin{document}
@@ -117,18 +117,85 @@ The Capital Allocation Line (CAL) represents the frontier of efficient portfolio
 \begin{equation}
 \mu_{CAL}(\sigma) = r_f + \left( \frac{\mu_{tan} - r_f}{\sigma_{tan}} \right) \sigma = r_f + \text{SR}_{tan} \sigma
 \end{equation}
-where $\text{SR}_{tan}$ is the annualized Sharpe ratio of the tangency portfolio.
+
+\subsection{Horizon-Scale Modeling and Annualization Scaling}
+The system optimizes portfolios using parameters adjusted to a specified investment horizon $H$ (in trading days, e.g., $H = 42$ for a 2-month horizon), but reports and plots results in annualized terms to conform to standard financial reporting conventions. 
+
+At the optimization level, the mathematical inputs are scaled to the holding period $H$:
+\begin{equation}
+\Sigma_H = \Sigma_{daily} \times H
+\end{equation}
+\begin{equation}
+r_{f, H} = r_{f, annual} \times \left( \frac{H}{360} \right)
+\end{equation}
+All optimization formulations (weights, volatilities, and returns) are solved using these horizon-scale variables. 
+
+To map these values back to the annualized scale depicted in the high-resolution charts, the system applies the following Scaling Factors:
+\begin{equation}
+\text{Scaling Factor}_{return} = \frac{360.0}{H}
+\end{equation}
+\begin{equation}
+\text{Scaling Factor}_{volatility} = \sqrt{\frac{252.0}{H}}
+\end{equation}
+Therefore, an annualized expected return plotted on the Efficient Frontier is derived from the horizon-scale return as:
+\begin{equation}
+R_{ann} = R_{H} \times \text{Scaling Factor}_{return}
+\end{equation}
+This explains why a portfolio with an expected return of, for example, $4.18\%$ over a 2-month period ($H = 42$) will be visualized on the Efficient Frontier chart as having an annualized expected return of $35.81\%$.
+
+\subsection{Capital Asset Pricing Model (CAPM) Integration}
+Following the optimization of the portfolio weights, the system integrates the Capital Asset Pricing Model (CAPM) to evaluate the systematic risk and risk-adjusted performance of both individual constituents and the optimized tangency portfolio relative to a selected benchmark index (such as VT or S\&P 500).
+
+For any asset $i$ (or the unified portfolio $p$), the daily return series is used to calculate the asset's Beta ($\beta_i$), which represents its sensitivity to the market benchmark:
+\begin{equation}
+\beta_i = \frac{\text{Cov}(R_i - r_f^{daily}, R_m - r_f^{daily})}{\text{Var}(R_m - r_f^{daily})}
+\end{equation}
+where $R_i$ is the daily return of the asset, $R_m$ is the daily return of the benchmark, and $r_f^{daily}$ is the daily risk-free rate ($r_f / 252$).
+
+The annualized Alpha ($\alpha_i$) is then calculated as the difference between the asset's annualized expected return $R_i^{ann}$ and its CAPM-expected return:
+\begin{equation}
+\alpha_i = R_i^{ann} - \left[ r_f + \beta_i \left( R_m^{ann} - r_f \right) \right]
+\end{equation}
+where $R_m^{ann}$ is the annualized benchmark return, and $r_f$ is the annualized risk-free rate. An alpha of zero indicates that the asset performs exactly in line with its systematic risk, whereas a positive alpha indicates risk-adjusted outperformance.
+
+\subsection{The Security Market Line (SML)}
+The Security Market Line (SML) is the graphical representation of the CAPM, plotting the expected return of individual assets and portfolios against their systematic risk ($\beta$). The SML is analytically defined as a straight line with Y-intercept at the risk-free rate $r_f$ and a slope equal to the market risk premium ($R_m^{ann} - r_f$):
+\begin{equation}
+E[R] = r_f + \beta \left( R_m^{ann} - r_f \right)
+\end{equation}
+The system plots the SML alongside individual asset coordinates and the optimal tangency portfolio. Assets positioned above the SML exhibit a positive alpha ($\alpha > 0$), while those below it exhibit a negative alpha ($\alpha < 0$). This visual representation allows for rapid identification of assets offering superior risk-adjusted returns.
+
+\subsection{Dynamic Parameter Calculation}
+To ensure the optimization process is robust and reflective of prevailing market conditions, the CLI employs dynamic formulations for key parameters instead of relying on static constants:
+\begin{enumerate}
+    \item \textbf{Dynamic Risk Aversion Coefficient ($\lambda$):} Calculated directly from the benchmark index's historical performance over the specified period:
+    \begin{equation}
+    \lambda = \max\left(0.1, \frac{R_m^{ann} - r_f}{\sigma_m^2}\right)
+    \end{equation}
+    where $\sigma_m^2$ is the annualized variance of the benchmark's daily returns. This ensures $\lambda$ represents the true historical market price of risk, with a lower bound of $0.1$ to maintain numerical stability and avoid negative or negligible risk aversion.
+    
+    \item \textbf{Dynamic Prior Uncertainty Scale ($\tau$):} Set inversely proportional to the number of daily historical observations $T$:
+    \begin{equation}
+    \tau = \frac{1}{T}
+    \end{equation}
+    This formulation matches standard econometric literature, scaling down the weight of the prior as more data points are available, reflecting increased statistical confidence in the historical covariance estimate.
+\end{enumerate}
+
+\subsection{Unified EUR Currency Normalization}
+A major architectural feature of the system is the complete currency normalization to Euros (EUR). For assets and benchmarks denominated in foreign currencies (e.g., USD, JPY, GBP), daily close prices and dividend series are normalized to EUR on a daily basis using historical daily FX rates fetched from yfinance (e.g., \texttt{USDEUR=X}). 
+
+This ensures that all returns, volatility, covariances, alphas, betas, and Sharpe ratios are computed from the perspective of a Euro-denominated investor, neutralizing foreign exchange risk and calendar mismatch effects through robust forward/backward-filling interpolation of FX rates.
 
 \section{System Architecture}
 
 The portfolio evaluation and optimization suite is built with modularity, high performance, and strict typing under Python 3.14. The system conforms to the following architectural design:
 
 \begin{enumerate}
-    \item \textbf{Data Ingestion \& Cache Layer (\texttt{yfinance\_service.py}):} Retreives historical data from yfinance and caches raw prices/dividends in timezone-naive Parquet format under \texttt{./yfinance\_cache} to avoid API rate limits.
-    \item \textbf{Currency Normalization Layer (\texttt{main\_service.py}):} Daily prices and dividends of non-EUR assets are converted using daily historical FX exchange rates (e.g., \texttt{USDEUR=X}) before computing returns.
-    \item \textbf{Analytics \& Stats (\texttt{reporting\_service.py}):} Computes cumulative returns, volatility, correlation, and dividend yield from daily return Series.
-    \item \textbf{Black-Litterman \& Markowitz Math (\texttt{bl\_optimization\_service.py}):} Implements the core mathematical formulas for implied returns, BL updates, analytical frontier coordinates, and tangency weights.
-    \item \textbf{Visualization Layer (\texttt{plotting\_service.py}):} Renders high-resolution matplotlib charts of the Efficient Frontier, CAL, asset dots, and the optimal Tangency point.
+    \item \textbf{Data Ingestion \& Cache Layer (\texttt{yfinance\_service.py}):} Retrieves historical data from yfinance and caches raw prices/dividends in timezone-naive Parquet format under \texttt{./yfinance\_cache} to avoid API rate limits.
+    \item \textbf{Currency Normalization Layer (\texttt{main\_service.py} \& \texttt{capm\_service.py}):} Normalizes historical Daily FX exchange rates (e.g., \texttt{USDEUR=X}) to align asset/benchmark prices and dividends under a unified EUR perspective.
+    \item \textbf{CAPM \& Statistical Analysis (\texttt{capm\_service.py} \& \texttt{reporting\_service.py}):} Performs annualized return, volatility, alpha, and beta calculations for portfolios and individual assets.
+    \item \textbf{Black-Litterman \& Markowitz Math (\texttt{bl\_optim\_service.py}):} Implements the core mathematical formulas for implied returns, BL posterior updates, analytical frontier coordinates, and maximum Sharpe ratio (tangency) weights under long-only constraints.
+    \item \textbf{Visualization Layer (\texttt{plotting\_service.py}):} Renders high-resolution matplotlib charts of the Efficient Frontier (including CAL, individual assets, and the tangency star) and the Security Market Line (SML).
 \end{enumerate}
 
 \section{Configuration and Parameters}
@@ -143,9 +210,9 @@ The standard execution parameters applied to the analysis are summarized in Tabl
 \toprule
 \textbf{Parameter} & \textbf{Value} & \textbf{Description} \\
 \midrule
-Risk-free Rate ($r_f$) & 2.0\% (annualized) & Yield proxy for EUR cash equivalents \\
-Risk Aversion ($\lambda$) & 3.0 & Market equilibrium scaling factor \\
-Prior Uncertainty ($\tau$) & 0.05 & Prior returns scaling coefficient \\
+Risk-free Rate ($r_f$) & Ticker (e.g., \texttt{\^{}IRX}) or Numeric & Annualized yield proxy for cash equivalents \\
+Risk Aversion ($\lambda$) & Dynamic: $\max\left(0.1, \frac{R_m^{ann} - r_f}{\sigma_m^2}\right)$ & Market equilibrium scaling factor \\
+Prior Uncertainty ($\tau$) & Dynamic: $1 / T$ & Prior returns scaling coefficient \\
 Trading Days per Year & 252 & Annualization factor for daily return series \\
 Regularization Value & $1.0 \times 10^{-6}$ & Added to diagonal of $\Sigma$ for numerical stability \\
 \bottomrule
@@ -154,12 +221,22 @@ Regularization Value & $1.0 \times 10^{-6}$ & Added to diagonal of $\Sigma$ for 
 
 \section{Summary of Results}
 
-Using the integration test suite workflow as an empirical baseline, a mock multi-asset USD/EUR portfolio was analyzed over a 1-year historical period. 
-The analytical efficient frontier hyperbola and Capital Allocation Line were successfully computed and plotted in high resolution.
-The resulting chart, saved as \texttt{test\_index\_efficient\_frontier\_1y.png}, highlights the high-contrast Tangency portfolio star, the risk-free Y-intercept, and the individual asset risk-return coordinates in cyan.
-The generated statistics confirm that the unconstrained tangency weights are optimal with respect to the Sharpe ratio relative to any individual portfolio constituent.
+Using the integration test suite and command-line execution workflows as empirical baselines, multi-asset portfolios are analyzed over a specified historical period (e.g., 2 years).
+The system successfully computes the unconstrained/long-only analytical efficient frontier, Capital Allocation Line, Security Market Line, and all CAPM alpha/beta statistics.
+
+The execution of the pipeline generates the following output deliverables under the resolved results directory:
+\begin{itemize}
+    \item \textbf{Efficient Frontier Plot} (\texttt{\{idx\_name\}\_\{period\}\_efficient\_frontier.png}): Highlights the high-contrast Tangency portfolio star, the risk-free Y-intercept, and individual asset risk-return coordinates in cyan.
+    \item \textbf{Security Market Line Plot} (\texttt{\{idx\_name\}\_\{period\}\_sml.png}): Graphs expected returns as a function of systematic risk ($\beta$), visually indicating outperforming constituents relative to the SML.
+    \item \textbf{\texttt{bl\_optimization\_results.json}}: Contains the comprehensive optimization results, including market caps, market weights, implied returns, posterior covariance matrix, and efficient frontier coordinates.
+    \item \textbf{\texttt{tangency\_portfolio\_only.json}}: Summarizes the optimal tangency portfolio weights, return, volatility, Sharpe ratio, beta, alpha, and optional EUR investment allocation details.
+    \item \textbf{\texttt{capm\_alpha\_beta.json}}: Reports the detailed CAPM alpha and beta values for the portfolio and each constituent, along with benchmark returns and volatility.
+\end{itemize}
+
+The generated statistics confirm that the tangency weights are optimal with respect to the Sharpe ratio, maximizing risk-adjusted return relative to any individual portfolio constituent.
 
 \section{Conclusion}
-The Market Analysis CLI provides a mathematically rigorous, currency-aware framework for portfolio optimization. By implementing the unconstrained analytical minimum-variance frontier hyperbola and combining it with the Black-Litterman model, the CLI provides investors with robust, stable, and theoretically consistent portfolio allocations, entirely normalized to a unified EUR perspective.
+
+The Market Analysis CLI provides a mathematically rigorous, currency-aware framework for portfolio optimization. By implementing the unconstrained and long-only analytical minimum-variance frontier, integrating CAPM alpha/beta evaluations, and combining these with the Black-Litterman model under dynamic parameterization, the CLI provides investors with robust, stable, and theoretically consistent portfolio allocations, entirely normalized to a unified EUR perspective.
 
 \end{document}
