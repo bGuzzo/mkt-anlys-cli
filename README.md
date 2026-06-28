@@ -1,5 +1,7 @@
 # Market Analysis & Portfolio Optimization Toolset
 ---
+![Market Analysis CLI Cover](pics/Black-Litterman_efficient_frontier_3y.png)
+---
 
 A Python-based suite of command-line utilities for financial backtesting, asset allocation, and Black-Litterman portfolio optimization, parameterized with daily currency normalization to Euros (EUR).
 
