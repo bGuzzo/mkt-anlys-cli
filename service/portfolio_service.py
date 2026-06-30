@@ -114,3 +114,38 @@ def calculate_portfolio_allocation(
         "total_investment_eur": float(total_euros),
         "constituents": constituents,
     }
+
+
+def calculate_portfolio_allocation_usd(
+    weights: dict[str, float], total_usd: float
+) -> dict[str, Any]:
+    """
+    Calculates detailed cash allocations in USD and target local currency
+    for a dictionary of weights and total USD.
+    """
+    logging.info(f"Distributing {total_usd} USD across optimized portfolio weights...")
+
+    constituents = {}
+    for ticker, weight in weights.items():
+        info = get_ticker_info(ticker)
+        currency = info.get("currency", "USD")
+
+        # Calculate USD allocation
+        usd_amount = total_usd * weight
+
+        # Convert USD amount to target/local currency using yfinance exchange rates
+        rate_to_local = get_exchange_rate("USD", currency)
+        local_amount = usd_amount * rate_to_local
+
+        constituents[ticker] = {
+            "weight": float(weight),
+            "usd_amount": float(round(usd_amount, 2)),
+            "local_currency": currency,
+            "local_amount": float(round(local_amount, 2)),
+        }
+
+    return {
+        "total_investment_usd": float(total_usd),
+        "constituents": constituents,
+    }
+

@@ -43,7 +43,7 @@
 \maketitle
 
 \begin{abstract}
-This report details the implementation, mathematical framework, and system architecture of the Black-Litterman (BL) optimization and Markowitz Efficient Frontier (EF) module integrated into the Market Analysis CLI. We establish a mathematically rigorous, unconstrained portfolio optimization pipeline normalized to a unified Euro (EUR) perspective. By combining historical covariance estimates, market equilibrium priors, and analytical hyperbola formulations, the system delivers high-resolution visual and statistical backtest reports to aid modern portfolio construction.
+This report details the implementation, mathematical framework, and system architecture of the Black-Litterman (BL) optimization and Markowitz Efficient Frontier (EF) module integrated into the Market Analysis CLI. We establish a mathematically rigorous, unconstrained portfolio optimization pipeline normalized to a unified US Dollar (USD) perspective. By combining historical covariance estimates, market equilibrium priors, and analytical hyperbola formulations, the system delivers high-resolution visual and statistical backtest reports to aid modern portfolio construction.
 \end{abstract}
 
 \section{Introduction}
@@ -181,10 +181,10 @@ To ensure the optimization process is robust and reflective of prevailing market
     This formulation matches standard econometric literature, scaling down the weight of the prior as more data points are available, reflecting increased statistical confidence in the historical covariance estimate.
 \end{enumerate}
 
-\subsection{Unified EUR Currency Normalization}
-A major architectural feature of the system is the complete currency normalization to Euros (EUR). For assets and benchmarks denominated in foreign currencies (e.g., USD, JPY, GBP), daily close prices and dividend series are normalized to EUR on a daily basis using historical daily FX rates fetched from yfinance (e.g., \texttt{USDEUR=X}). 
+\subsection{Unified USD Currency Normalization}
+A major architectural feature of the system is the complete currency normalization to US Dollars (USD). For assets and benchmarks denominated in foreign currencies (e.g., EUR, JPY, GBP), daily close prices and dividend series are normalized to USD on a daily basis using historical daily FX rates fetched from yfinance (e.g., \texttt{EURUSD=X}). 
 
-This ensures that all returns, volatility, covariances, alphas, betas, and Sharpe ratios are computed from the perspective of a Euro-denominated investor, neutralizing foreign exchange risk and calendar mismatch effects through robust forward/backward-filling interpolation of FX rates.
+This ensures that all returns, volatility, covariances, alphas, betas, and Sharpe ratios are computed from the perspective of a USD-denominated investor, neutralizing foreign exchange risk and calendar mismatch effects through robust forward/backward-filling interpolation of FX rates.
 
 \section{System Architecture}
 
@@ -192,7 +192,7 @@ The portfolio evaluation and optimization suite is built with modularity, high p
 
 \begin{enumerate}
     \item \textbf{Data Ingestion \& Cache Layer (\texttt{yfinance\_service.py}):} Retrieves historical data from yfinance and caches raw prices/dividends in timezone-naive Parquet format under \texttt{./yfinance\_cache} to avoid API rate limits.
-    \item \textbf{Currency Normalization Layer (\texttt{main\_service.py} \& \texttt{capm\_service.py}):} Normalizes historical Daily FX exchange rates (e.g., \texttt{USDEUR=X}) to align asset/benchmark prices and dividends under a unified EUR perspective.
+    \item \textbf{Currency Normalization Layer (\texttt{main\_service.py} \& \texttt{capm\_service.py}):} Normalizes historical Daily FX exchange rates to align asset/benchmark prices and dividends under a unified USD perspective.
     \item \textbf{CAPM \& Statistical Analysis (\texttt{capm\_service.py} \& \texttt{reporting\_service.py}):} Performs annualized return, volatility, alpha, and beta calculations for portfolios and individual assets.
     \item \textbf{Black-Litterman \& Markowitz Math (\texttt{bl\_optim\_service.py}):} Implements the core mathematical formulas for implied returns, BL posterior updates, analytical frontier coordinates, and maximum Sharpe ratio (tangency) weights under long-only constraints.
     \item \textbf{Visualization Layer (\texttt{plotting\_service.py}):} Renders high-resolution matplotlib charts of the Efficient Frontier (including CAL, individual assets, and the tangency star) and the Security Market Line (SML).
@@ -229,7 +229,7 @@ The execution of the pipeline generates the following output deliverables under 
     \item \textbf{Efficient Frontier Plot} (\texttt{\{idx\_name\}\_\{period\}\_efficient\_frontier.png}): Highlights the high-contrast Tangency portfolio star, the risk-free Y-intercept, and individual asset risk-return coordinates in cyan.
     \item \textbf{Security Market Line Plot} (\texttt{\{idx\_name\}\_\{period\}\_sml.png}): Graphs expected returns as a function of systematic risk ($\beta$), visually indicating outperforming constituents relative to the SML.
     \item \textbf{\texttt{bl\_optimization\_results.json}}: Contains the comprehensive optimization results, including market caps, market weights, implied returns, posterior covariance matrix, and efficient frontier coordinates.
-    \item \textbf{\texttt{tangency\_portfolio\_only.json}}: Summarizes the optimal tangency portfolio weights, return, volatility, Sharpe ratio, beta, alpha, and optional EUR investment allocation details.
+    \item \textbf{\texttt{tangency\_portfolio\_only.json}}: Summarizes the optimal tangency portfolio weights, return, volatility, Sharpe ratio, beta, alpha, and optional USD investment allocation details.
     \item \textbf{\texttt{capm\_alpha\_beta.json}}: Reports the detailed CAPM alpha and beta values for the portfolio and each constituent, along with benchmark returns and volatility.
 \end{itemize}
 
@@ -237,6 +237,6 @@ The generated statistics confirm that the tangency weights are optimal with resp
 
 \section{Conclusion}
 
-The Market Analysis CLI provides a mathematically rigorous, currency-aware framework for portfolio optimization. By implementing the unconstrained and long-only analytical minimum-variance frontier, integrating CAPM alpha/beta evaluations, and combining these with the Black-Litterman model under dynamic parameterization, the CLI provides investors with robust, stable, and theoretically consistent portfolio allocations, entirely normalized to a unified EUR perspective.
+The Market Analysis CLI provides a mathematically rigorous, currency-aware framework for portfolio optimization. By implementing the unconstrained and long-only analytical minimum-variance frontier, integrating CAPM alpha/beta evaluations, and combining these with the Black-Litterman model under dynamic parameterization, the CLI provides investors with robust, stable, and theoretically consistent portfolio allocations, entirely normalized to a unified USD perspective.
 
 \end{document}

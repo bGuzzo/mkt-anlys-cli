@@ -62,14 +62,14 @@ def get_risk_free_rate(rf_param: str) -> float:
 def construct_market_weights_dict(tickers: list[str]) -> tuple[dict[str, float], dict[str, float]]:
     """
     Constructs market weights from market cap info.
-    Normalizes market caps to EUR.
+    Normalizes market caps to USD.
     Returns:
     - Dict of normalized market weights.
-    - Dict of raw market caps in EUR.
+    - Dict of raw market caps in USD.
     """
-    logging.info("Constructing market weights from market caps in EUR...")
-    market_caps_eur: dict[str, float] = {}
-    total_mkt_cap_eur = 0.0
+    logging.info("Constructing market weights from market caps in USD...")
+    market_caps_usd: dict[str, float] = {}
+    total_mkt_cap_usd = 0.0
 
     for ticker in tickers:
         info = get_ticker_info(ticker)
@@ -80,28 +80,29 @@ def construct_market_weights_dict(tickers: list[str]) -> tuple[dict[str, float],
             logging.warning(f"No market cap for '{ticker}'. Defaulting to equal weight proxy.")
             continue
 
-        rate_to_eur = get_exchange_rate(currency, "EUR")
-        mkt_cap_eur = float(mkt_cap) * rate_to_eur
-        market_caps_eur[ticker] = mkt_cap_eur
-        total_mkt_cap_eur += mkt_cap_eur
+        rate_to_usd = get_exchange_rate(currency, "USD")
+        mkt_cap_usd = float(mkt_cap) * rate_to_usd
+        market_caps_usd[ticker] = mkt_cap_usd
+        total_mkt_cap_usd += mkt_cap_usd
 
     # Handle missing tickers
-    missing_tickers = [t for ticker in tickers if (t := ticker) not in market_caps_eur]
+    missing_tickers = [t for ticker in tickers if (t := ticker) not in market_caps_usd]
     if missing_tickers:
-        avg_cap = total_mkt_cap_eur / len(market_caps_eur) if market_caps_eur else 1.0e11
+        avg_cap = total_mkt_cap_usd / len(market_caps_usd) if market_caps_usd else 1.0e11
         for ticker in missing_tickers:
-            market_caps_eur[ticker] = avg_cap
-            total_mkt_cap_eur += avg_cap
+            market_caps_usd[ticker] = avg_cap
+            total_mkt_cap_usd += avg_cap
 
     weights: dict[str, float] = {}
-    if total_mkt_cap_eur > 0:
+    if total_mkt_cap_usd > 0:
         for ticker in tickers:
-            weights[ticker] = market_caps_eur[ticker] / total_mkt_cap_eur
+            weights[ticker] = market_caps_usd[ticker] / total_mkt_cap_usd
     else:
         for ticker in tickers:
             weights[ticker] = 1.0 / len(tickers)
 
-    return weights, market_caps_eur
+    return weights, market_caps_usd
+
 
 
 def construct_market_weights(tickers: list[str]) -> np.ndarray:
@@ -295,7 +296,7 @@ def run_black_litterman_optimization(
 ) -> dict[str, Any]:
     """
     Orchestrates the Black-Litterman optimization under zero-views (equilibrium state).
-    All calculations are normalized to EUR.
+    All calculations are normalized to USD.
     """
     valid_tickers = [t for t in tickers if t in prices_df.columns]
     if len(valid_tickers) < len(tickers):
@@ -306,7 +307,7 @@ def run_black_litterman_optimization(
     if prices_df_clean.empty:
         raise ValueError("Prices DataFrame is empty after dropping NaNs.")
 
-    mkt_weights_dict, mkt_caps_eur = construct_market_weights_dict(valid_tickers)
+    mkt_weights_dict, mkt_caps_usd = construct_market_weights_dict(valid_tickers)
     w_mkt = np.array([mkt_weights_dict[t] for t in valid_tickers])
 
     daily_returns = prices_df_clean.pct_change().dropna()
@@ -342,7 +343,7 @@ def run_black_litterman_optimization(
         "rf_horizon": rf_horizon,
         "lambda": lambda_coeff,
         "tau": tau,
-        "market_caps_eur": mkt_caps_eur,
+        "market_caps_usd": mkt_caps_usd,
         "market_weights": {t: float(mkt_weights_dict[t]) for t in valid_tickers},
         "equilibrium_excess_returns": {
             t: float(pi_horizon[i]) for i, t in enumerate(valid_tickers)

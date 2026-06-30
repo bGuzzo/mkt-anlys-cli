@@ -122,7 +122,7 @@ uv run bl-ef-optim.py \
   --risk-free "^IRX" \
   --benchmark "VT" \
   --period "3y" \
-  --eur-buy 14000 \
+  --usd-buy 14000 \
   --outdir "./results/optimal_portfolio"
 ```
 
@@ -132,16 +132,15 @@ uv run bl-ef-optim.py \
 * `--risk-free` *(string)*: Annualized risk-free rate, specified either as a numeric decimal (e.g., `0.035`) or as a yfinance ticker (e.g., `^IRX` for Treasury Bills). (Default: `0.04`).
 * `--benchmark` *(string)*: Reference benchmark used to compute risk aversion and CAPM regressions (default: `VT`).
 * `--period` *(string)*: Lookback period for covariance matrix estimation (default: `2y`). Supported: `3mo, 6mo, 1y, 2y, 5y, 10y`.
-* `--eur-buy` *(float)*: Total cash allocation in EUR to distribute according to optimal weights.
+* `--usd-buy` *(float)*: Total cash allocation in USD to distribute according to optimal weights.
 * `--outdir` *(Path)*: Output path for the data and charts.
 
 ---
 
 ## Computational Methodology
 
-### 1. EUR Currency Normalization
+### 1. USD Currency Normalization
 All inputs are daily-adjusted for currency conversion:
-$$P_{EUR, t} = P_{local, t} \times FX_{local/EUR, t}$$
 This isolates organic asset returns from exchange rate fluctuations during historical lookbacks.
 
 ### 2. Horizon Parameter Scaling
@@ -172,7 +171,7 @@ The Black-Litterman optimization run produces the following artifacts:
 1. **Efficient Frontier Plot (`*efficient_frontier.png`)**: Visualizes the long-only minimum variance frontier, Capital Allocation Line (CAL), asset coordinates, and the optimal Tangency portfolio.
 2. **Security Market Line Plot (`*sml.png`)**: Charts annualized expected returns against systematic risk ($\beta$), showing individual asset alphas.
 3. **`bl_optimization_results.json`**: Complete raw output containing prior parameters, posterior covariance, and frontier coordinates.
-4. **`tangency_portfolio_only.json`**: Summary of weights, expected return, volatility, Sharpe ratio, and buy allocations if `--eur-buy` is specified.
+4. **`tangency_portfolio_only.json`**: Summary of weights, expected return, volatility, Sharpe ratio, and buy allocations if `--usd-buy` is specified.
 5. **`capm_alpha_beta.json`**: Individual asset and portfolio Alpha and Beta values relative to the selected benchmark.
 
 ---

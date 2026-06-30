@@ -69,6 +69,55 @@ def normalize_data_to_eur(
     return normalized_dict
 
 
+def normalize_data_to_usd(
+    data_dict: dict[str, pd.DataFrame], period: str
+) -> dict[str, pd.DataFrame]:
+    """
+    Normalizes all price and dividend data in the data_dict to USD.
+    """
+    normalized_dict = {}
+    for ticker, df in data_dict.items():
+        if df.empty:
+            normalized_dict[ticker] = df
+            continue
+
+        info = get_ticker_info(ticker)
+        currency = info.get("currency", "USD")
+
+        if currency == "USD":
+            logging.info(f"Ticker '{ticker}' is already in USD. No normalization needed.")
+            normalized_dict[ticker] = df
+            continue
+
+        logging.info(f"Normalizing '{ticker}' from {currency} to USD for period '{period}'...")
+        rates = get_historical_exchange_rates(currency, "USD", period)
+
+        if rates.empty:
+            logging.warning(
+                f"Could not fetch exchange rates for {currency}/USD. Using raw data for '{ticker}'."
+            )
+            normalized_dict[ticker] = df
+            continue
+
+        # Align rates with the ticker data index
+        # We use reindex with ffill to handle different trading calendars
+        rates_aligned = rates.reindex(df.index, method="ffill")
+
+        # If still some NaNs at the beginning, use the first valid rate
+        rates_aligned = rates_aligned.ffill().bfill()
+
+        df_norm = df.copy()
+        df_norm["Close"] = df["Close"] * rates_aligned
+        if "Dividends" in df.columns:
+            df_norm["Dividends"] = df["Dividends"] * rates_aligned
+
+        normalized_dict[ticker] = df_norm
+        logging.info(f"Successfully normalized '{ticker}' to USD.")
+
+    return normalized_dict
+
+
+
 def run_analysis(
     weights: dict[str, float], benchmark: str, outdir: Path, periods: list[str], idx_name: str
 ) -> None:

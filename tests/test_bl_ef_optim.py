@@ -44,7 +44,7 @@ def test_bl_ef_optim_cli_integration(tmp_path: Path, cli_runner: CliRunner) -> N
         patch("service.bl_optim_service.get_market_data") as mock_market_data,
         patch("service.bl_optim_service.get_exchange_rate") as mock_rate,
         patch("service.main_service.align_and_combine_data") as mock_align,
-        patch("service.main_service.normalize_data_to_eur") as mock_norm,
+        patch("service.main_service.normalize_data_to_usd") as mock_norm,
     ):
         # Mock ticker info with market caps
         def side_effect_info(ticker: str) -> dict[str, Any]:
@@ -73,7 +73,7 @@ def test_bl_ef_optim_cli_integration(tmp_path: Path, cli_runner: CliRunner) -> N
         mock_market_data.side_effect = side_effect_market
 
         # Mock exchange rate
-        mock_rate.return_value = 0.9  # 1 USD = 0.9 EUR
+        mock_rate.return_value = 1.0  # 1 USD = 1.0 USD
 
         # Mock align and normalize
         mock_align.return_value = {"AAPL": mock_aapl, "MSFT": mock_msft, "VT": mock_vt}
@@ -117,7 +117,7 @@ def test_bl_ef_optim_cli_integration(tmp_path: Path, cli_runner: CliRunner) -> N
         assert "tickers" in data
         assert "horizon_days" in data
         assert data["horizon_days"] == 42  # 2mo * 21 = 42
-        assert "market_caps_eur" in data
+        assert "market_caps_usd" in data
         assert "market_weights" in data
         assert "equilibrium_excess_returns" in data
         assert "tangency_portfolio" in data
@@ -180,7 +180,7 @@ def test_bl_ef_optim_cli_integration_with_eur_buy(tmp_path: Path, cli_runner: Cl
         patch("service.bl_optim_service.get_exchange_rate") as mock_rate,
         patch("service.portfolio_service.get_exchange_rate") as mock_port_rate,
         patch("service.main_service.align_and_combine_data") as mock_align,
-        patch("service.main_service.normalize_data_to_eur") as mock_norm,
+        patch("service.main_service.normalize_data_to_usd") as mock_norm,
     ):
         # Mock ticker info with market caps
         def side_effect_info(ticker: str) -> dict[str, Any]:
@@ -210,14 +210,14 @@ def test_bl_ef_optim_cli_integration_with_eur_buy(tmp_path: Path, cli_runner: Cl
         mock_market_data.side_effect = side_effect_market
 
         # Mock exchange rate
-        mock_rate.return_value = 0.9  # 1 USD = 0.9 EUR
-        mock_port_rate.return_value = 1.11  # 1 EUR = 1.11 USD
+        mock_rate.return_value = 1.0  # 1 USD = 1.0 USD
+        mock_port_rate.return_value = 1.0  # 1 USD = 1.0 USD
 
         # Mock align and normalize
         mock_align.return_value = {"AAPL": mock_aapl, "MSFT": mock_msft, "VT": mock_vt}
         mock_norm.return_value = {"AAPL": mock_aapl, "MSFT": mock_msft, "VT": mock_vt}
 
-        # Run the command via Typer CliRunner with --eur-buy
+        # Run the command via Typer CliRunner with --usd-buy
         result = cli_runner.invoke(
             bl_ef_cli.app,
             [
@@ -233,7 +233,7 @@ def test_bl_ef_optim_cli_integration_with_eur_buy(tmp_path: Path, cli_runner: Cl
                 "1y",
                 "--outdir",
                 str(outdir),
-                "--eur-buy",
+                "--usd-buy",
                 "10000",
             ],
         )
@@ -250,13 +250,13 @@ def test_bl_ef_optim_cli_integration_with_eur_buy(tmp_path: Path, cli_runner: Cl
         with open(tangency_json) as f:
             t_data = json.load(f)
         assert "allocation" in t_data
-        assert t_data["allocation"]["total_investment_eur"] == 10000.0
+        assert t_data["allocation"]["total_investment_usd"] == 10000.0
         assert "AAPL" in t_data["allocation"]["constituents"]
         assert "MSFT" in t_data["allocation"]["constituents"]
 
         with open(output_json) as f:
             data = json.load(f)
         assert "allocation" in data["tangency_portfolio"]
-        assert data["tangency_portfolio"]["allocation"]["total_investment_eur"] == 10000.0
+        assert data["tangency_portfolio"]["allocation"]["total_investment_usd"] == 10000.0
 
 

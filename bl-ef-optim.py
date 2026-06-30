@@ -12,7 +12,7 @@ from service.bl_optim_service import (
     parse_horizon,
     run_black_litterman_optimization,
 )
-from service.main_service import normalize_data_to_eur
+from service.main_service import normalize_data_to_usd
 from service.plotting_service import plot_efficient_frontier
 from service.yfinance_service import align_and_combine_data
 
@@ -78,19 +78,20 @@ def main(
         "--outdir",
         help="Target directory for output. Defaults to results/bl-ef-<timestamp>.",
     ),
-    eur_buy: float = typer.Option(
+    usd_buy: float = typer.Option(
         None,
-        "--eur-buy",
+        "--usd-buy",
         help=(
-            "Amount of money in Euros (EUR) to invest and allocate "
+            "Amount of money in US Dollars (USD) to invest and allocate "
             "across optimized tangency portfolio constituents."
         ),
     ),
 ) -> None:
     """
     Perform Black-Litterman portfolio optimization & compute the efficient frontier.
-    All metrics and valuations are normalized to Euros (EUR).
+    All metrics and valuations are normalized to US Dollars (USD).
     """
+
     logging.info("Starting Black-Litterman & Efficient Frontier Optimization Pipeline")
 
     # 1. Parse and validate tickers
@@ -126,12 +127,12 @@ def main(
 
     logging.info(f"Output directory resolved to: {resolved_outdir}")
 
-    # 5. Fetch and normalize historical close prices to EUR
+    # 5. Fetch and normalize historical close prices to USD
     try:
         logging.info(f"Fetching daily historical data for period: '{period}'")
         tickers_to_fetch = list(dict.fromkeys([*tickers, benchmark]))
         data_dict = align_and_combine_data(tickers_to_fetch, period)
-        normalized_data = normalize_data_to_eur(data_dict, period)
+        normalized_data = normalize_data_to_usd(data_dict, period)
 
         # Build daily close prices DataFrame
         prices_df = pd.DataFrame()
@@ -295,11 +296,11 @@ def main(
             "alpha": capm_results["portfolio"]["alpha"],
         }
 
-        if eur_buy is not None:
-            from service.portfolio_service import calculate_portfolio_allocation
-            allocation_report = calculate_portfolio_allocation(
+        if usd_buy is not None:
+            from service.portfolio_service import calculate_portfolio_allocation_usd
+            allocation_report = calculate_portfolio_allocation_usd(
                 weights=results["tangency_portfolio"]["weights"],
-                total_euros=eur_buy,
+                total_usd=usd_buy,
             )
             tangency_only["allocation"] = allocation_report
             results["tangency_portfolio"]["allocation"] = allocation_report

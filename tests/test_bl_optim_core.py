@@ -30,11 +30,11 @@ def test_construct_market_weights(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
     tickers = ["AAPL", "MSFT"]
-    weights, _caps_eur = construct_market_weights_dict(tickers)
+    weights, _caps_usd = construct_market_weights_dict(tickers)
 
-    # AAPL cap = 200m * 0.9 = 180m EUR
-    # MSFT cap = 100m * 0.9 = 90m EUR
-    # Total = 270m EUR
+    # AAPL cap = 200m * 0.9 = 180m USD
+    # MSFT cap = 100m * 0.9 = 90m USD
+    # Total = 270m USD
     assert len(weights) == 2
     np.testing.assert_almost_equal(weights["AAPL"], 2.0 / 3.0)
     np.testing.assert_almost_equal(weights["MSFT"], 1.0 / 3.0)
