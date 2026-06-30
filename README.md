@@ -141,6 +141,7 @@ uv run bl-ef-optim.py \
 
 ### 1. USD Currency Normalization
 All inputs are daily-adjusted for currency conversion:
+$$P_{USD, t} = P_{local, t} \times FX_{local/USD, t}$$
 This isolates organic asset returns from exchange rate fluctuations during historical lookbacks.
 
 ### 2. Horizon Parameter Scaling
